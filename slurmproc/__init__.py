@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import pickle
+import dill
 import re
 import subprocess
 import tempfile
@@ -25,15 +25,15 @@ def call(func, dir=None, tempdir=None, opts=None,
             raise RuntimeError('dir already exists')
 
     script_file = os.path.join(dir, 'script.sh')
-    func_file = os.path.join(dir, 'func.pickle')
-    result_file = os.path.join(dir, 'result.pickle')
+    func_file = os.path.join(dir, 'func.dill')
+    result_file = os.path.join(dir, 'result.dill')
 
     if not os.path.exists(dir):
         os.makedirs(dir, 0755)
     with open(script_file, 'w') as f:
         write_script(f, dir, opts=opts)
     with open(func_file, 'w') as f:
-        pickle.dump(func, f)
+        dill.dump(func, f)
     job_id = _parse_job_id(subprocess.check_output([
         'sbatch',
         '--output={}'.format(os.path.join(dir, output_filename)),
@@ -44,7 +44,7 @@ def call(func, dir=None, tempdir=None, opts=None,
     if not os.path.exists(result_file):
         raise RuntimeError('result file not found: \'{}\''.format(result_file))
     with open(result_file, 'r') as f:
-        result = pickle.load(f)
+        result = dill.load(f)
     output, ex_traceback = result
     if ex_traceback is not None:
         raise RuntimeError('original exception: {}'.format(ex_traceback))
