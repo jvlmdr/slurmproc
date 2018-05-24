@@ -3,11 +3,13 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import dill
 import re
 import subprocess
 import tempfile
 import time
+
+import dill
+dill.settings['recurse'] = True
 
 import logging
 logger = logging.getLogger(__name__)

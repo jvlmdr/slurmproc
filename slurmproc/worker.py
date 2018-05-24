@@ -4,8 +4,10 @@ from __future__ import print_function
 
 import argparse
 import os
-import dill
 import traceback
+
+import dill
+dill.settings['recurse'] = True
 
 import logging
 logger = logging.getLogger(__name__)
