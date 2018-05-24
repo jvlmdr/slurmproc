@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class Process(object):
 
     def __init__(self, func, dir=None, tempdir=None, opts=None,
-                 output_filename='output.txt', error_filename='error.txt')
+                 output_filename='output.txt', error_filename='error.txt'):
         if not dir:
             assert tempdir
             if not os.path.exists(tempdir):
