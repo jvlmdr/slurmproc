@@ -13,42 +13,58 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def call(func, dir=None, tempdir=None, opts=None,
-         output_filename='output.txt', error_filename='error.txt'):
-    if not dir:
-        assert tempdir
-        if not os.path.exists(tempdir):
-            os.makedirs(tempdir, 0755)
-        dir = tempfile.mkdtemp(dir=tempdir)
-    else:
-        if os.path.exists(dir):
-            raise RuntimeError('dir already exists')
+class Process(object):
 
-    script_file = os.path.join(dir, 'script.sh')
-    func_file = os.path.join(dir, 'func.dill')
-    result_file = os.path.join(dir, 'result.dill')
+    def __init__(self, func, dir=None, tempdir=None, opts=None,
+                 output_filename='output.txt', error_filename='error.txt')
+        if not dir:
+            assert tempdir
+            if not os.path.exists(tempdir):
+                os.makedirs(tempdir, 0755)
+            dir = tempfile.mkdtemp(dir=tempdir)
+        else:
+            if os.path.exists(dir):
+                raise RuntimeError('dir already exists')
 
-    if not os.path.exists(dir):
-        os.makedirs(dir, 0755)
-    with open(script_file, 'w') as f:
-        write_script(f, dir, opts=opts)
-    with open(func_file, 'w') as f:
-        dill.dump(func, f)
-    job_id = _parse_job_id(subprocess.check_output([
-        'sbatch',
-        '--output={}'.format(os.path.join(dir, output_filename)),
-        '--error={}'.format(os.path.join(dir, error_filename)),
-        script_file]))
-    logger.debug('job id: %s', str(job_id))
-    wait(job_id)
-    if not os.path.exists(result_file):
-        raise RuntimeError('result file not found: \'{}\''.format(result_file))
-    with open(result_file, 'r') as f:
-        result = dill.load(f)
-    output, ex_traceback = result
-    if ex_traceback is not None:
-        raise RuntimeError('original exception: {}'.format(ex_traceback))
-    return output
+        script_file = os.path.join(dir, 'script.sh')
+        func_file = os.path.join(dir, 'func.dill')
+
+        if not os.path.exists(dir):
+            os.makedirs(dir, 0755)
+        with open(script_file, 'w') as f:
+            write_script(f, dir, opts=opts)
+        with open(func_file, 'w') as f:
+            dill.dump(func, f)
+        job_id = _parse_job_id(subprocess.check_output([
+            'sbatch',
+            '--output={}'.format(os.path.join(dir, output_filename)),
+            '--error={}'.format(os.path.join(dir, error_filename)),
+            script_file]))
+        logger.debug('job id: %s', str(job_id))
+
+        self._dir = dir
+        self._job_id = job_id
+
+
+    def poll(self):
+        return poll(self._job_id)
+
+
+    def wait(self, **kwargs):
+        result_file = os.path.join(self._dir, 'result.dill')
+        wait(self._job_id, **kwargs)
+        if not os.path.exists(result_file):
+            raise RuntimeError('result file not found: \'{}\''.format(result_file))
+        with open(result_file, 'r') as f:
+            result = dill.load(f)
+        output, ex_traceback = result
+        if ex_traceback is not None:
+            raise RuntimeError('original exception: {}'.format(ex_traceback))
+        return output
+
+
+def call(func, **kwargs):
+    return Process(func, **kwargs).wait()
 
 
 def write_script(f, dir, opts=None, setup_cmds=None):
@@ -76,7 +92,7 @@ def _parse_job_id(out):
     return int(match.group(1))
 
 
-def poll_state(job_id):
+def poll(job_id):
     out = subprocess.check_output(['squeue', '--jobs={}'.format(job_id),
                                    '--noheader', '--format=%t'])
     out = out.strip()
@@ -88,7 +104,7 @@ def poll_state(job_id):
 
 def wait(job_id, period=1):
     while True:
-        state = poll_state(job_id)
+        state = poll(job_id)
         if not state:
             return
         if state not in ['PD', 'R', 'CG']:
