@@ -8,11 +8,10 @@ import subprocess
 import tempfile
 import time
 
-import dill
-dill.settings['recurse'] = True
-
 import logging
 logger = logging.getLogger(__name__)
+
+from . import util
 
 
 class Process(object):
@@ -27,16 +26,13 @@ class Process(object):
         else:
             if os.path.exists(dir):
                 raise RuntimeError('dir already exists')
-
-        script_file = os.path.join(dir, 'script.sh')
-        func_file = os.path.join(dir, 'func.dill')
-
         if not os.path.exists(dir):
             os.makedirs(dir, 0755)
+
+        script_file = os.path.join(dir, 'script.sh')
         with open(script_file, 'w') as f:
             write_script(f, dir, opts=opts, setup_cmds=setup_cmds)
-        with open(func_file, 'w') as f:
-            dill.dump(func, f)
+        util.dump_func(func, dir)
         job_id = _parse_job_id(subprocess.check_output([
             'sbatch',
             '--output={}'.format(os.path.join(dir, output_filename)),
@@ -53,15 +49,11 @@ class Process(object):
 
 
     def wait(self, **kwargs):
-        result_file = os.path.join(self._dir, 'result.dill')
         wait(self._job_id, **kwargs)
-        if not os.path.exists(result_file):
-            raise RuntimeError('result file not found: \'{}\''.format(result_file))
-        with open(result_file, 'r') as f:
-            result = dill.load(f)
+        result = util.load_result(self._dir)
         output, ex_traceback = result
         if ex_traceback is not None:
-            raise RuntimeError('original exception: {}'.format(ex_traceback))
+            raise RuntimeError('original exception:\n\n{}'.format(ex_traceback))
         return output
 
 

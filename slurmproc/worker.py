@@ -6,11 +6,10 @@ import argparse
 import os
 import traceback
 
-import dill
-dill.settings['recurse'] = True
-
 import logging
 logger = logging.getLogger(__name__)
+
+from . import util
 
 
 def main():
@@ -18,20 +17,15 @@ def main():
     parser.add_argument('dir')
     args = parser.parse_args()
 
-    func_file = os.path.join(args.dir, 'func.dill')
-    result_file = os.path.join(args.dir, 'result.dill')
-
     try:
-        with open(func_file, 'r') as f:
-            func = dill.load(f)
+        func = util.load_func(args.dir)
         output = func()
         result = (output, None)
     except Exception as ex:
         ex_traceback = traceback.format_exc()
         result = (None, ex_traceback)
 
-    with open(result_file, 'w') as f:
-        dill.dump(result, f)
+    util.dump_result(result, args.dir)
 
 
 if __name__ == '__main__':
