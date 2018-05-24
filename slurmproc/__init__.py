@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Process(object):
 
-    def __init__(self, func, dir=None, tempdir=None, opts=None,
+    def __init__(self, func, dir=None, tempdir=None, opts=None, setup_cmds=None,
                  output_filename='output.txt', error_filename='error.txt'):
         if not dir:
             assert tempdir
@@ -32,7 +32,7 @@ class Process(object):
         if not os.path.exists(dir):
             os.makedirs(dir, 0755)
         with open(script_file, 'w') as f:
-            write_script(f, dir, opts=opts)
+            write_script(f, dir, opts=opts, setup_cmds=setup_cmds)
         with open(func_file, 'w') as f:
             dill.dump(func, f)
         job_id = _parse_job_id(subprocess.check_output([
