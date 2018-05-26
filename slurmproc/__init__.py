@@ -7,6 +7,7 @@ import re
 import subprocess
 import tempfile
 import time
+import traceback
 
 import logging
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class Process(object):
             '--output={}'.format(os.path.join(dir, output_filename)),
             '--error={}'.format(os.path.join(dir, error_filename)),
             script_file]))
-        logger.debug('job id: %s', str(job_id))
+        logger.debug('started job %s in dir "%s"', str(job_id), dir)
 
         self._dir = dir
         self._job_id = job_id
@@ -51,9 +52,12 @@ class Process(object):
     def wait(self, **kwargs):
         wait(self._job_id, **kwargs)
         result = util.load_result(self._dir)
-        output, ex_traceback = result
-        if ex_traceback is not None:
-            raise RuntimeError('original exception:\n\n{}'.format(ex_traceback))
+        output, exc_info = result
+        if exc_info is not None:
+            exc_type, exc_value, exc_traceback = exc_info
+            msg = traceback.format_exception_only(exc_type, exc_value)
+            tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            raise RuntimeError('error in slurm process: {}\n\n{}'.format(msg, ''.join(tb_lines)))
         return output
 
 

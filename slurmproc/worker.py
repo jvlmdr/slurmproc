@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import argparse
 import os
+import sys
 import traceback
 
 import logging
@@ -16,15 +17,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dir')
     args = parser.parse_args()
+    logging.basicConfig(level=logging.DEBUG)  # TODO: Allow control?
 
     try:
         func = util.load_func(args.dir)
         output = func()
-        result = (output, None)
     except Exception as ex:
-        ex_traceback = traceback.format_exc()
-        result = (None, ex_traceback)
+        # ex_traceback = traceback.format_exc()
+        result = (None, sys.exc_info())
+        util.dump_result(result, args.dir)
+        raise
 
+    result = (output, None)
     util.dump_result(result, args.dir)
 
 
