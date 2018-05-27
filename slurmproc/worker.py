@@ -25,15 +25,16 @@ def main():
         logger.debug('call func')
         output = func()
     except Exception as ex:
-        logger.warning('exception: %s', str(ex))
-        # ex_traceback = traceback.format_exc()
-        result = (None, sys.exc_info())
-        logger.debug('dump result to "%s": %s', args.dir, repr(result))
+        logger.warning('exception in worker: %s', str(ex))
+        msg = str(ex)
+        tb = traceback.format_exc()
+        result = (None, (msg, tb))
+        logger.debug('dump result to "%s"', args.dir)
         util.dump_result(result, args.dir)
         raise
 
     result = (output, None)
-    logger.debug('dump result to "%s": %s', args.dir, repr(result))
+    logger.debug('dump result to "%s"', args.dir)
     util.dump_result(result, args.dir)
 
 

@@ -52,12 +52,13 @@ class Process(object):
     def wait(self, **kwargs):
         wait(self._job_id, **kwargs)
         result = util.load_result(self._dir)
-        output, exc_info = result
-        if exc_info is not None:
-            exc_type, exc_value, exc_traceback = exc_info
-            msg = traceback.format_exception_only(exc_type, exc_value)
-            tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            raise RuntimeError('error in slurm process: {}\n\n{}'.format(msg, ''.join(tb_lines)))
+        output, err = result
+        if err is not None:
+            try:
+                msg, tb = err
+            except:
+                raise RuntimeError('cannot unpack error: {}'.format(repr(ex)))
+            raise RuntimeError('error in slurm process: {}\n\n{}'.format(msg, tb))
         return output
 
 
@@ -96,7 +97,7 @@ def poll(job_id):
     out = out.strip()
     if '\n' in out:
         raise RuntimeError('multiple lines in output: \'{}\''.format(out))
-    logger.debug('poll state of job %s: \'%s\'', str(job_id), out)
+    # logger.debug('poll state of job %s: \'%s\'', str(job_id), out)
     return out
 
 
