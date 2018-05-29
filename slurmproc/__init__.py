@@ -92,13 +92,16 @@ def _parse_job_id(out):
 
 
 def poll(job_id):
-    out = subprocess.check_output(['squeue', '--jobs={}'.format(job_id),
-                                   '--noheader', '--format=%t'])
-    out = out.strip()
-    if '\n' in out:
-        raise RuntimeError('multiple lines in output: \'{}\''.format(out))
-    # logger.debug('poll state of job %s: \'%s\'', str(job_id), out)
-    return out
+    job_id = int(job_id)
+    status = poll_all()
+    return status.get(job_id, None)
+    # out = subprocess.check_output(['squeue', '--jobs={}'.format(job_id),
+    #                                '--noheader', '--format=%t'])
+    # out = out.strip()
+    # if '\n' in out:
+    #     raise RuntimeError('multiple lines in output: \'{}\''.format(out))
+    # # logger.debug('poll state of job %s: \'%s\'', str(job_id), out)
+    # return out
 
 
 def wait(job_id, period=1):
@@ -109,3 +112,19 @@ def wait(job_id, period=1):
         if state not in ['PD', 'R', 'CG']:
             raise RuntimeError('unexpected state: {}'.format(state))
         time.sleep(period)
+
+
+def poll_all():
+    out = subprocess.check_output(['squeue', '--noheader', '--format=%A %t'])
+    lines = out.splitlines()
+    status = {}
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        words = line.split(' ')
+        if len(words) != 2:
+            continue
+        job_id, job_status = words
+        status[int(job_id)] = job_status
+    return status
