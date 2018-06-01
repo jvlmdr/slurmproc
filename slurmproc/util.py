@@ -31,3 +31,16 @@ def load_result(dir):
     result_file = os.path.join(dir, 'result' + EXT)
     with open(result_file, 'r') as f:
         return pickle.load(f)
+
+
+class RemoteException(Exception):
+
+    def __init__(self, msg, tb_file=None):
+        self.msg = msg
+        self.tb_file = tb_file
+
+    def __str__(self):
+        msg = self.msg
+        if self.tb_file:
+            msg += ' (traceback written to "{}")'.format(self.tb_file)
+        return msg

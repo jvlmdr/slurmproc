@@ -13,14 +13,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 from . import util
+from .util import RemoteException
 
 
 class Process(object):
 
     def __init__(self, func, dir=None, tempdir=None, opts=None, setup_cmds=None,
                  output_filename='output.txt', error_filename='error.txt'):
+        '''Submits a job to slurm that computes func().
+
+        Args:
+            func: Must be able to be pickled. (Note partial() supports pickling.)
+            dir: Directory in which to write scripts, inputs, outputs for job.
+                If None, then create a temporary directory under tempdir.
+                This directory (or tempdir) must be accessible by the worker (nfs).
+            tempdir: Only used if dir is None.
+            opts: List of strings like ['--time=1:00:00', '--partition=small']
+            setup_cmds: Commands to execute in bash script before python.
+        '''
+        assert dir or tempdir, 'directory not specified'
         if not dir:
-            assert tempdir
             if not os.path.exists(tempdir):
                 os.makedirs(tempdir, 0755)
             dir = tempfile.mkdtemp(dir=tempdir)
@@ -39,27 +51,50 @@ class Process(object):
             '--output={}'.format(os.path.join(dir, output_filename)),
             '--error={}'.format(os.path.join(dir, error_filename)),
             script_file]))
-        logger.debug('started job %s in dir "%s"', str(job_id), dir)
+        logger.debug('started job "%s" in dir "%s"', job_id, dir)
 
         self._dir = dir
         self._job_id = job_id
 
+    def job_id(self):
+        return self._job_id
 
     def poll(self):
         return poll(self._job_id)
 
-
     def wait(self, **kwargs):
         wait(self._job_id, **kwargs)
+        return self.output()
+
+    def output(self):
         result = util.load_result(self._dir)
         output, err = result
         if err is not None:
             try:
-                msg, tb = err
+                msg_lines, tb_lines = err
             except:
-                raise RuntimeError('cannot unpack error: {}'.format(repr(ex)))
-            raise RuntimeError('error in slurm process: {}\n\n{}'.format(msg, tb))
+                raise RuntimeError('cannot unpack error: {}'.format(repr(err)))
+            msg = ''.join(msg_lines).strip()
+            if msg:
+                msg = msg.splitlines()[0]
+            tb_file = os.path.join(self._dir, 'traceback.txt')
+            try:
+                with open(tb_file, 'w') as f:
+                    for line in tb_lines:
+                        f.write(line)
+            except IOError as ex:
+                logger.warning('could not write traceback to file: %s', str(ex))
+            raise RemoteException(msg, tb_file)
         return output
+
+    def terminate(self):
+        terminate(self._job_id)
+
+    def dir(self):
+        return self._dir
+
+    def __str__(self):
+        return '[job={} dir={}]'.format(self._job_id, self._dir)
 
 
 def call(func, **kwargs):
@@ -88,11 +123,14 @@ def _parse_job_id(out):
     match = re.match('Submitted batch job (\d+)', out)
     if not match:
         raise RuntimeError('could not read job number from stdout: \'{}\''.format(out))
-    return int(match.group(1))
+    job_id = match.group(1)
+    _assert_integer(job_id)
+    return job_id
 
 
 def poll(job_id):
-    job_id = int(job_id)
+    '''Returns None if job is not in queue.'''
+    _assert_integer(job_id)
     status = poll_all()
     return status.get(job_id, None)
     # out = subprocess.check_output(['squeue', '--jobs={}'.format(job_id),
@@ -114,6 +152,16 @@ def wait(job_id, period=1):
         time.sleep(period)
 
 
+def wait_any(job_ids, period=1):
+    while True:
+        states = poll_all()
+        completed = set(job_ids).difference(set(states.keys()))
+        # logger.debug('waiting for {} jobs to finish'.format(len(job_ids)))
+        if len(completed) > 0:
+            return completed
+        time.sleep(period)
+
+
 def poll_all():
     out = subprocess.check_output(['squeue', '--noheader', '--format=%A %t'])
     lines = out.splitlines()
@@ -126,5 +174,22 @@ def poll_all():
         if len(words) != 2:
             continue
         job_id, job_status = words
-        status[int(job_id)] = job_status
+        _assert_integer(job_id)
+        status[job_id] = job_status
     return status
+
+
+def terminate(job_id):
+    state = poll(job_id)
+    if not state:
+        return
+    logger.debug('scancel %s', job_id)
+    try:
+        subprocess.check_call(['scancel', job_id])
+    except CalledProcessError as ex:
+        logger.warning('scancel %s: %s', job_id, str(ex))
+
+
+def _assert_integer(s):
+    if s != str(int(s)):
+        raise RuntimeError('not an integer: {}'.format(s))
