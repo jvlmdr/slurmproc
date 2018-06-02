@@ -153,6 +153,8 @@ def wait(job_id, period=1):
 
 
 def wait_any(job_ids, period=1):
+    if len(job_ids) == 0:
+        raise RuntimeError('no jobs to wait for')
     while True:
         states = poll_all()
         completed = set(job_ids).difference(set(states.keys()))
