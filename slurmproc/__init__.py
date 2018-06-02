@@ -34,13 +34,13 @@ class Process(object):
         assert dir or tempdir, 'directory not specified'
         if not dir:
             if not os.path.exists(tempdir):
-                os.makedirs(tempdir, 0755)
+                os.makedirs(tempdir, 0o755)
             dir = tempfile.mkdtemp(dir=tempdir)
         else:
             if os.path.exists(dir):
                 raise RuntimeError('dir already exists')
         if not os.path.exists(dir):
-            os.makedirs(dir, 0755)
+            os.makedirs(dir, 0o755)
 
         script_file = os.path.join(dir, 'script.sh')
         with open(script_file, 'w') as f:
