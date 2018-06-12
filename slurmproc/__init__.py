@@ -165,8 +165,12 @@ def wait_any(job_ids, period=1):
 
 
 def poll_all():
-    out = subprocess.check_output(['squeue', '--noheader', '--format=%A %t'])
-    lines = out.splitlines()
+    try:
+        out = subprocess.check_output(['squeue', '--noheader', '--format=%A %t'])
+        lines = out.splitlines()
+    except subprocess.CalledProcessError as ex:
+        logger.warning('call squeue: %s', ex)
+        lines = []
     status = {}
     for line in lines:
         line = line.strip()
