@@ -19,7 +19,8 @@ from .util import RemoteException
 class Process(object):
 
     def __init__(self, func, dir=None, tempdir=None, opts=None, setup_cmds=None,
-                 output_filename='output.txt', error_filename='error.txt'):
+                 output_filename='output.txt', error_filename='error.txt',
+                 job_name=None):
         '''Submits a job to slurm that computes func().
 
         Args:
@@ -46,11 +47,12 @@ class Process(object):
         with open(script_file, 'w') as f:
             write_script(f, dir, opts=opts, setup_cmds=setup_cmds)
         util.dump_func(func, dir)
-        job_id = _parse_job_id(subprocess.check_output([
-            'sbatch',
-            '--output={}'.format(os.path.join(dir, output_filename)),
-            '--error={}'.format(os.path.join(dir, error_filename)),
-            script_file]))
+        sbatch_args = ['--output={}'.format(os.path.join(dir, output_filename)),
+                       '--error={}'.format(os.path.join(dir, error_filename)),
+                       script_file]
+        if job_name:
+            sbatch_args = ['--job-name={}'.format(job_name)] + sbatch_args
+        job_id = _parse_job_id(subprocess.check_output(['sbatch'] + sbatch_args))
         logger.debug('started job "%s" in dir "%s"', job_id, dir)
 
         self._dir = dir
