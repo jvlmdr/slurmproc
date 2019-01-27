@@ -11,25 +11,25 @@ EXT = '.pickle'
 
 def dump_func(func, dir):
     func_file = os.path.join(dir, 'func' + EXT)
-    with open(func_file, 'w') as f:
+    with open(func_file, 'wb') as f:
         pickle.dump(func, f)
 
 
 def load_func(dir):
     func_file = os.path.join(dir, 'func' + EXT)
-    with open(func_file, 'r') as f:
+    with open(func_file, 'rb') as f:
         return pickle.load(f)
 
 
 def dump_result(result, dir):
     result_file = os.path.join(dir, 'result' + EXT)
-    with open(result_file, 'w') as f:
+    with open(result_file, 'wb') as f:
         pickle.dump(result, f)
 
 
 def load_result(dir):
     result_file = os.path.join(dir, 'result' + EXT)
-    with open(result_file, 'r') as f:
+    with open(result_file, 'rb') as f:
         return pickle.load(f)
 
 

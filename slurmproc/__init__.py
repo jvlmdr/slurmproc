@@ -122,6 +122,8 @@ python -m slurmproc.worker {dir}
 
 
 def _parse_job_id(out):
+    if isinstance(out, bytes):
+        out = out.decode()
     match = re.match('Submitted batch job (\d+)', out)
     if not match:
         raise RuntimeError('could not read job number from stdout: \'{}\''.format(out))
@@ -169,6 +171,8 @@ def wait_any(job_ids, period=1):
 def poll_all():
     try:
         out = subprocess.check_output(['squeue', '--noheader', '--format=%A %t'])
+        if isinstance(out, bytes):
+            out = out.decode()
         lines = out.splitlines()
     except subprocess.CalledProcessError as ex:
         logger.warning('call squeue: %s', ex)
